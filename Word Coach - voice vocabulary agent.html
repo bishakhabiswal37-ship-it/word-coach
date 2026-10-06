@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Word Coach - a voice agent that teaches vocabulary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3fb;--panel:#fff;--ink:#16213f;--muted:#55607f;--line:#d3dcee;--accent:#0f8b8d;--accent-ink:#fff;--hi:#f2b134;--bad:#b4442f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1426;--panel:#18213b;--ink:#eaf0ff;--muted:#9aa7c9;--line:#2b3658;--accent:#35c2c4;--accent-ink:#06222a;--bad:#ff9d85}}
+:root[data-theme="dark"]{--bg:#0e1426;--panel:#18213b;--ink:#eaf0ff;--muted:#9aa7c9;--line:#2b3658;--accent:#35c2c4;--accent-ink:#06222a;--bad:#ff9d85}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font:800 clamp(28px,6vw,38px)/1.1 "Bricolage Grotesque",system-ui,sans-serif;margin:8px 0 4px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 18px;max-width:52ch}
+.stage{display:flex;align-items:center;gap:18px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+.orb{flex:none;width:84px;height:84px;border-radius:50%;background:var(--accent);position:relative;display:grid;place-items:center}
+.orb::before,.orb::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0}
+.orb svg{width:34px;height:34px;fill:var(--accent-ink)}
+.orb.speaking::before{animation:ring 1.4s ease-out infinite}
+.orb.speaking::after{animation:ring 1.4s ease-out .5s infinite}
+.orb.listening{background:var(--hi)}
+.orb.listening svg{fill:#3a2a00}
+.orb.listening::before{border-color:var(--hi);animation:ring 1s ease-out infinite}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.7);opacity:0}}
+.wordcard{min-width:0}
+.status{margin:0;color:var(--muted);font-size:14px}
+.word{font:800 clamp(28px,7vw,40px)/1.1 "Bricolage Grotesque",system-ui,sans-serif;margin:2px 0;overflow-wrap:anywhere}
+.meaning{margin:0;color:var(--muted);font-size:15px}
+.log{margin:16px 0;display:flex;flex-direction:column;gap:8px;min-height:60px}
+.msg{max-width:88%;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--panel)}
+.msg.agent{align-self:flex-start;border-bottom-left-radius:4px}
+.msg.user{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-color:var(--accent);border-bottom-right-radius:4px}
+.msg.warn{color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text]{flex:1 1 220px;min-width:0;padding:12px 14px;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px}
+button{font:600 15px/1 "Public Sans",system-ui,sans-serif;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.tools{margin-top:10px;justify-content:space-between;align-items:center}
+.tools label{font-size:14px;color:var(--muted);display:flex;gap:6px;align-items:center}
+details{margin-top:28px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 16px}
+summary{cursor:pointer;font-weight:600;padding:12px 0}
+details h2{font:600 16px/1.3 "Bricolage Grotesque",system-ui,sans-serif;margin:14px 0 4px}
+details p,details li{color:var(--muted);font-size:15px;margin:4px 0}
+details ul{padding-left:18px;margin:4px 0 12px}
+@media (prefers-reduced-motion:reduce){.orb::before,.orb::after{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>Word Coach</h1>
+<p class="sub">A voice agent that teaches you five words, then asks you to use each one in your own sentence. Speak or type.</p>
+
+<section class="stage" aria-label="Current word">
+  <div class="orb" id="orb" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg></div>
+  <div class="wordcard">
+    <p class="status" id="status">Ready when you are</p>
+    <p class="word" id="word">-</p>
+    <p class="meaning" id="meaning">Press Start to begin.</p>
+  </div>
+</section>
+
+<div class="log" id="log" aria-live="polite"></div>
+
+<div class="row">
+  <input type="text" id="sentence" placeholder="Type your sentence here" aria-label="Your sentence" disabled>
+  <button class="primary" id="check" disabled>Check sentence</button>
+  <button id="mic" disabled>Speak</button>
+</div>
+<div class="row tools">
+  <div class="row">
+    <button class="primary" id="start">Start</button>
+    <button id="replay" disabled>Hear it again</button>
+    <button id="skip" disabled>Skip word</button>
+  </div>
+  <label><input type="checkbox" id="voice" checked> Agent voice on</label>
+</div>
+
+<details>
+  <summary>About this prototype</summary>
+  <h2>The problem it tackles</h2>
+  <p>People learn a word faster when they use it, not only when they hear it. A voice agent can run that loop without a teacher: teach, prompt, listen, respond.</p>
+  <h2>How a session works</h2>
+  <ul>
+    <li>Five words per session. The agent says the word, its meaning and an example.</li>
+    <li>You use the word in a sentence, spoken or typed. You get two tries.</li>
+    <li>Missed words come back once at the end of the session.</li>
+  </ul>
+  <h2>What I would measure</h2>
+  <ul>
+    <li>Session completion rate and drop-off by word</li>
+    <li>Share of sentences that use the target word on the first try</li>
+    <li>Retry rate and how many revisited words are passed</li>
+    <li>Whether users return the next day</li>
+  </ul>
+  <h2>What it cannot do yet</h2>
+  <ul>
+    <li>It checks that you used the word in a full sentence of five or more words. It does not judge whether the meaning is right. The next version would add an LLM check for meaning and tone.</li>
+    <li>Word list is fixed. Next: level selection and spaced repetition.</li>
+    <li>Speech input needs Chrome or Edge. Typing works everywhere.</li>
+  </ul>
+  <p>Built with Claude as plain HTML, using the browser's speech tools. No data leaves your device.</p>
+</details>
+</main>
+
+<script>
+const WORDS=[
+{w:"candid",m:"honest and direct, even when it is uncomfortable",e:"She gave candid feedback on my project."},
+{w:"meticulous",m:"very careful about every small detail",e:"He is meticulous when he checks the numbers."},
+{w:"resilient",m:"able to recover quickly after a setback",e:"The team stayed resilient after the launch failed."},
+{w:"ambiguous",m:"open to more than one meaning, not clear",e:"The instructions were ambiguous, so we asked for details."},
+{w:"pragmatic",m:"focused on what works in practice",e:"We took a pragmatic approach and shipped the simple version."},
+{w:"concise",m:"short and clear, with no extra words",e:"Please keep your update concise."},
+{w:"reluctant",m:"not willing, or hesitant, to do something",e:"I was reluctant to change the plan so late."},
+{w:"mitigate",m:"to make a problem less serious",e:"We added checks to mitigate the risk of errors."},
+{w:"scalable",m:"able to grow without breaking",e:"They built a scalable system for millions of users."},
+{w:"thrive",m:"to grow and do very well",e:"Small teams often thrive when goals are clear."}
+];
+const $=id=>document.getElementById(id);
+const orb=$("orb"),logEl=$("log"),inp=$("sentence");
+let queue=[],cur=null,tries=0,total=0,learned=0,missed=[],busy=false,started=false;
+const synth=window.speechSynthesis;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR)$("mic").title="Speech input is not supported in this browser. Type instead.";
+
+function log(who,t,cls){const d=document.createElement("div");d.className="msg "+who+(cls?" "+cls:"");d.textContent=t;logEl.appendChild(d);d.scrollIntoView({block:"nearest"})}
+function setOrb(s){orb.className="orb"+(s?" "+s:"")}
+function enable(on){inp.disabled=!on;$("check").disabled=!on;$("mic").disabled=!on||!SR;$("replay").disabled=!on;$("skip").disabled=!on}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function say(t){
+  return new Promise(res=>{
+    if(!synth||!$("voice").checked)return res();
+    synth.cancel();
+    const u=new SpeechSynthesisUtterance(t);u.rate=.95;
+    const v=synth.getVoices();
+    u.voice=v.find(x=>x.lang==="en-IN")||v.find(x=>x.lang&&x.lang.startsWith("en"))||null;
+    let done=false;const fin=()=>{if(!done){done=true;setOrb("");res()}};
+    u.onstart=()=>setOrb("speaking");u.onend=fin;u.onerror=fin;
+    setTimeout(fin,Math.max(4000,t.length*95));
+    synth.speak(u);
+  });
+}
+async function agent(t){log("agent",t);await say(t)}
+
+async function teach(){
+  cur=queue[0];tries=0;enable(false);
+  const n=cur.retry?"Review":"Word "+(Math.min(learned+missed.length+1,total))+" of "+total;
+  $("status").textContent=n;$("word").textContent=cur.w;$("meaning").textContent=cur.m;
+  await agent(cur.w+". It means "+cur.m+". For example: "+cur.e);
+  await agent("Your turn. Use "+cur.w+" in a sentence of your own.");
+  enable(true);inp.focus();
+}
+async function start(){
+  started=true;learned=0;missed=[];logEl.innerHTML="";
+  queue=shuffle(WORDS).slice(0,5);total=queue.length;
+  $("start").textContent="Restart";
+  await agent("Hi, I am your word coach. Let us learn five words.");
+  teach();
+}
+function next(){queue.shift();if(!queue.length)return finish();setTimeout(teach,500)}
+async function finish(){
+  enable(false);$("status").textContent="Session complete";$("word").textContent=learned+" of "+total;
+  $("meaning").textContent=missed.length?"To revisit: "+missed.join(", "):"All words used correctly.";
+  await agent(missed.length?"Done. You used "+learned+" of "+total+" words on your own. Revisit "+missed.join(", ")+".":"Done. You used all "+total+" words in your own sentences. Nice work.");
+}
+async function check(text){
+  if(busy||!cur)return;text=(text||"").trim();if(!text)return;
+  busy=true;enable(false);log("user",text);inp.value="";
+  const toks=text.toLowerCase().match(/[a-z']+/g)||[];
+  const stem=cur.w.slice(0,Math.max(4,cur.w.length-2));
+  const hasWord=toks.some(t=>t.startsWith(stem));
+  const full=toks.length>=5;
+  if(hasWord&&full){
+    if(!cur.retry)learned++;else{learned++;missed=missed.filter(x=>x!==cur.w)}
+    await agent("Good. You used "+cur.w+" in a full sentence. Remember, it means "+cur.m+".");
+    busy=false;return next();
+  }
+  tries++;
+  if(tries<2){
+    await agent(!hasWord?"I did not hear "+cur.w+" in that. Try again with the word "+cur.w+".":"Make it a full sentence, at least five words, with "+cur.w+" in it.");
+    busy=false;enable(true);inp.focus();return;
+  }
+  await agent("Here is a model sentence: "+cur.e);
+  if(!cur.retry){missed.push(cur.w);queue.push({...cur,retry:true})}
+  busy=false;next();
+}
+
+$("start").onclick=start;
+$("check").onclick=()=>check(inp.value);
+inp.addEventListener("keydown",e=>{if(e.key==="Enter")check(inp.value)});
+$("replay").onclick=()=>{if(cur)say(cur.w+". It means "+cur.m+". For example: "+cur.e)};
+$("skip").onclick=()=>{if(!cur||busy)return;if(!cur.retry){missed.push(cur.w);queue.push({...cur,retry:true})}next()};
+$("voice").onchange=e=>{if(!e.target.checked&&synth)synth.cancel()};
+$("mic").onclick=()=>{
+  if(!SR||busy)return;if(synth)synth.cancel();
+  const r=new SR();r.lang="en-IN";r.interimResults=false;r.maxAlternatives=1;
+  r.onstart=()=>{setOrb("listening");$("status").textContent="Listening..."};
+  r.onresult=e=>{const t=e.results[0][0].transcript;inp.value=t;check(t)};
+  r.onerror=e=>{log("agent","I could not use the microphone ("+e.error+"). Type your sentence instead.","warn")};
+  r.onend=()=>{setOrb("");if(cur&&!busy)$("status").textContent=cur.retry?"Review":$("status").textContent.replace("Listening...","Your turn")};
+  try{r.start()}catch(_){}
+};
+if(synth&&synth.onvoiceschanged!==undefined)synth.onvoiceschanged=()=>{};
+</script>
+</body>
+</html>
