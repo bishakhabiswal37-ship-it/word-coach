@@ -1,1 +1,1 @@
-# word-coach
+# index.html
